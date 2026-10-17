@@ -1,24 +1,54 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/data/site";
 import { getAllVehicleSlugs } from "@/data/vehicles";
+import { locales, localizedPath } from "@/i18n/config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticPages: MetadataRoute.Sitemap = [
-    { url: SITE_URL, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
-    { url: `${SITE_URL}/voitures`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.9 },
-    { url: `${SITE_URL}/apropos`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${SITE_URL}/conditions`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${SITE_URL}/contact`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-  ];
+  const entries: MetadataRoute.Sitemap = [];
 
-  const vehiclePages: MetadataRoute.Sitemap = getAllVehicleSlugs().map(
-    (slug) => ({
-      url: `${SITE_URL}/voitures/${slug}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    })
-  );
+  for (const locale of locales) {
+    entries.push(
+      {
+        url: `${SITE_URL}${localizedPath(locale, "home")}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 1,
+      },
+      {
+        url: `${SITE_URL}${localizedPath(locale, "fleet")}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 0.9,
+      },
+      {
+        url: `${SITE_URL}${localizedPath(locale, "about")}`,
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.6,
+      },
+      {
+        url: `${SITE_URL}${localizedPath(locale, "conditions")}`,
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.6,
+      },
+      {
+        url: `${SITE_URL}${localizedPath(locale, "contact")}`,
+        lastModified: new Date(),
+        changeFrequency: "monthly",
+        priority: 0.7,
+      }
+    );
 
-  return [...staticPages, ...vehiclePages];
+    for (const slug of getAllVehicleSlugs()) {
+      entries.push({
+        url: `${SITE_URL}${localizedPath(locale, "fleet", slug)}`,
+        lastModified: new Date(),
+        changeFrequency: "weekly",
+        priority: 0.8,
+      });
+    }
+  }
+
+  return entries;
 }

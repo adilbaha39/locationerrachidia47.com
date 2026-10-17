@@ -2,26 +2,51 @@ import type { Metadata } from "next";
 import { SITE_URL, siteConfig } from "@/data/site";
 import type { Vehicle } from "@/data/vehicles";
 import { formatPrice } from "@/data/vehicles";
+import type { Locale } from "@/i18n/config";
+import {
+  locales,
+  localeOgLocale,
+  localizedPath,
+  type PathnameKey,
+} from "@/i18n/config";
 
 const defaultOgImage = `${SITE_URL}/images/hero.jpg`;
 
 type PageSeoInput = {
   title: string;
   description: string;
-  path: string;
+  locale: Locale;
+  pathKey: PathnameKey;
+  slug?: string;
   image?: string;
   imageAlt?: string;
   noIndex?: boolean;
 };
 
+/** Build hreflang alternates for all locales */
+function languageAlternates(
+  pathKey: PathnameKey,
+  slug?: string
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const loc of locales) {
+    map[loc] = `${SITE_URL}${localizedPath(loc, pathKey, slug)}`;
+  }
+  map["x-default"] = `${SITE_URL}${localizedPath("fr", pathKey, slug)}`;
+  return map;
+}
+
 export function buildMetadata({
   title,
   description,
-  path,
+  locale,
+  pathKey,
+  slug,
   image = defaultOgImage,
   imageAlt = siteConfig.name,
   noIndex = false,
 }: PageSeoInput): Metadata {
+  const path = localizedPath(locale, pathKey, slug);
   const url = `${SITE_URL}${path}`;
   return {
     title,
@@ -29,23 +54,19 @@ export function buildMetadata({
     metadataBase: new URL(SITE_URL),
     alternates: {
       canonical: url,
+      languages: languageAlternates(pathKey, slug),
     },
     robots: noIndex
       ? { index: false, follow: false }
       : { index: true, follow: true },
     openGraph: {
       type: "website",
-      locale: siteConfig.locale,
+      locale: localeOgLocale[locale],
       url,
       siteName: siteConfig.name,
       title,
       description,
-      images: [
-        {
-          url: image,
-          alt: imageAlt,
-        },
-      ],
+      images: [{ url: image, alt: imageAlt }],
     },
     twitter: {
       card: "summary_large_image",
@@ -56,27 +77,30 @@ export function buildMetadata({
   };
 }
 
-export function vehicleMetadata(vehicle: Vehicle): Metadata {
-  const title = `Location ${vehicle.name} à Errachidia | ${siteConfig.name}`;
-  const description = `Louez une ${vehicle.name} ${vehicle.year} à Errachidia dès ${formatPrice(vehicle.pricePerDay)} DH/jour. ${vehicle.transmission}, ${vehicle.fuel}, ${vehicle.seats} places. Réservation WhatsApp.`;
+export function vehicleMetadata(
+  vehicle: Vehicle,
+  locale: Locale,
+  title: string,
+  description: string
+): Metadata {
   return buildMetadata({
     title,
     description,
-    path: `/voitures/${vehicle.slug}`,
+    locale,
+    pathKey: "fleet",
+    slug: vehicle.slug,
     image: `${SITE_URL}${vehicle.image}`,
-    imageAlt: `Location ${vehicle.name} à Errachidia`,
+    imageAlt: title,
   });
 }
 
-/* ---------- JSON-LD helpers ---------- */
-
-export function localBusinessJsonLd() {
-  const data: Record<string, unknown> = {
+export function localBusinessJsonLd(locale: Locale = "fr") {
+  return {
     "@context": "https://schema.org",
     "@type": "AutoRental",
     name: siteConfig.name,
     description: siteConfig.description,
-    url: SITE_URL,
+    url: `${SITE_URL}/${locale}`,
     telephone: siteConfig.phone,
     email: siteConfig.email,
     address: {
@@ -104,8 +128,8 @@ export function localBusinessJsonLd() {
       closes: siteConfig.openingHours.closes,
     },
     priceRange: "450–1800 MAD",
+    inLanguage: locale,
   };
-  return data;
 }
 
 export function websiteJsonLd() {
@@ -115,7 +139,7 @@ export function websiteJsonLd() {
     name: siteConfig.name,
     url: SITE_URL,
     description: siteConfig.description,
-    inLanguage: "fr",
+    inLanguage: locales,
     publisher: {
       "@type": "Organization",
       name: siteConfig.name,
@@ -139,23 +163,24 @@ export function breadcrumbJsonLd(
   };
 }
 
-export function vehicleProductJsonLd(vehicle: Vehicle) {
+export function vehicleProductJsonLd(
+  vehicle: Vehicle,
+  locale: Locale,
+  description: string
+) {
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     name: vehicle.name,
-    description: vehicle.description,
-    brand: {
-      "@type": "Brand",
-      name: vehicle.brand,
-    },
+    description,
+    brand: { "@type": "Brand", name: vehicle.brand },
     category: vehicle.category,
     offers: {
       "@type": "Offer",
       price: vehicle.pricePerDay,
       priceCurrency: vehicle.currency,
       availability: "https://schema.org/InStock",
-      url: `${SITE_URL}/voitures/${vehicle.slug}`,
+      url: `${SITE_URL}${localizedPath(locale, "fleet", vehicle.slug)}`,
       seller: {
         "@type": "Organization",
         name: siteConfig.name,
